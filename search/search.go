@@ -16,6 +16,8 @@ const (
 	OPERATORS        = "&|"
 )
 
+var noArticleError = errors.New("No articles found.")
+
 // Public
 
 func NewIndex(files ...string) (*Index, error) {
@@ -24,12 +26,10 @@ func NewIndex(files ...string) (*Index, error) {
 
 	for _, file := range files {
 		content, err := readFileContent(file)
-		if err != nil {
-			return nil, err
-		}
+		if err != nil { return nil, err }
 
 		words := tokenize(content)
-		indexWords(storage, words, file)
+		storage.indexWords(words, file)
 	}
 
 	return storage, nil
@@ -57,15 +57,13 @@ func (i *Index) and(words ...string) ([]string, error) {
 
 	for _, word := range words {
 		files, ok := i.index[strings.TrimSpace(word)]
-		if !ok {
-			return nil, errors.New("No articles found.")
-		}
+		if !ok { return nil, noArticleError }
 		join = append(join, files...)
 	}
 
-	for word, count := range countItems(join) {
+	for article, count := range countItems(join) {
 		if count == len(words) {
-			articles = append(articles, word)
+			articles = append(articles, article)
 		}
 	}
 
@@ -77,27 +75,25 @@ func (i *Index) or(words ...string) ([]string, error) {
 
 	for _, word := range words {
 		files, ok := i.index[strings.TrimSpace(word)]
-		if !ok {
-			return nil, errors.New("No articles found.")
-		}
+		if !ok { return nil, noArticleError }
 		articles = appendUnique(articles, files...)
 	}
 
 	return articles, nil
 }
 
-func indexWords(storage *Index, words []string, filepath string) {
+func (i *Index) indexWords(words []string, filepath string) {
 	for _, word := range words {
-		slice, ok := storage.index[word]
+		files, ok := i.index[word]
 
 		if !ok {
-			slice = []string{filepath}
+			files = []string{filepath}
 
-		} else if !hasItem(slice, filepath) {
-			slice = append(slice, filepath)
+		} else if !hasItem(files, filepath) {
+			files = append(files, filepath)
 		}
 
-		storage.index[word] = slice
+		i.index[word] = files
 	}
 }
 
@@ -112,16 +108,11 @@ func hasItem(slice []string, item string) bool {
 }
 
 func countItems(items []string) map[string]int {
-	result := make(map[string]int)
+	result := make(map[string]int, len(items))
 	for _, item := range items {
-		v, ok := result[item]
-		if !ok {
-			v = 1
-		} else {
-			v++
-		}
-
-		result[item] = v
+		count, ok := result[item]
+		if !ok { count = 0 }
+		result[item] = count + 1
 	}
 
 	return result
@@ -154,9 +145,6 @@ func sanitize(s string, chars string) string {
 
 func readFileContent(filepath string) (string, error) {
 	content, err := ioutil.ReadFile(filepath)
-	if err != nil {
-		return "", err
-	}
-
+	if err != nil { return "", err }
 	return string(content), nil
 }
