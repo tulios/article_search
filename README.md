@@ -1,4 +1,4 @@
-# Article Search in Go
+# Article Search
 
 This is a program written in Go for searching articles (study purpose)
 
