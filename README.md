@@ -1,6 +1,6 @@
 # Article Search in Go
 
-A program for searching articles (study purpose)
+This is a program written in Go for searching articles (study purpose)
 
 ## Run
 
